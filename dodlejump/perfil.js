@@ -14,6 +14,62 @@ function playClick() {
     clickSound.play().catch(() => {})
 }
 
+// Settings modal: edit display name (email read-only)
+async function openSettingsModal() {
+    const existing = document.getElementById('settingsOverlay')
+    if (existing) return
+
+    const user = getUser() || {}
+
+    const overlay = document.createElement('div')
+    overlay.id = 'settingsOverlay'
+    overlay.style = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:120;'
+
+    const modal = document.createElement('div')
+    modal.style = 'width:90%;max-width:520px;background:#fff;border-radius:12px;padding:18px;max-height:80vh;overflow:auto;'
+    modal.innerHTML = `
+        <h3 style="margin:0 0 10px">Configuración de perfil</h3>
+        <div style="display:flex;flex-direction:column;gap:10px">
+            <label style="font-weight:700">Nombre de usuario</label>
+            <input id="settingsName" type="text" placeholder="Tu nombre" style="padding:10px;border:1px solid #ddd;border-radius:8px;font-size:16px" />
+
+            <label style="font-weight:700">Correo (no editable)</label>
+            <input id="settingsEmail" type="text" readonly style="padding:10px;border:1px solid #f0f0f0;border-radius:8px;background:#fafafa;font-size:14px;color:#666" />
+
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:6px">
+                <button id="cancelSettings" style="padding:8px 12px;border-radius:8px;background:#eee;border:none;">Cancelar</button>
+                <button id="saveSettings" style="padding:8px 12px;border-radius:8px;background:#2b8a14;color:#fff;border:none;font-weight:800">Guardar</button>
+            </div>
+        </div>
+    `
+
+    overlay.appendChild(modal)
+    document.body.appendChild(overlay)
+
+    const nameInput = document.getElementById('settingsName')
+    const emailInput = document.getElementById('settingsEmail')
+    nameInput.value = user.name || ''
+    emailInput.value = user.email || ''
+
+    document.getElementById('cancelSettings').addEventListener('click', () => overlay.remove())
+
+    document.getElementById('saveSettings').addEventListener('click', () => {
+        const newName = nameInput.value.trim()
+        if (!newName) { showToast('Ingresa un nombre válido'); return }
+
+        const u = getUser() || {}
+        u.name = newName
+        saveUser(u)
+
+        // Update visible profile name if present
+        const el = document.querySelector('.profile-name')
+        if (el) el.textContent = newName
+
+        showToast('Nombre actualizado')
+        overlay.remove()
+    })
+}
+
 function getUser() {
     const data = localStorage.getItem(STORAGE_USER)
     return data ? JSON.parse(data) : null
@@ -673,7 +729,7 @@ function renderProfile() {
             <main class="main">
                 <section class="profile-header">
                     <div class="avatar-wrap">
-                        <img class="avatar" src="./images/avatar_user.png" alt="Avatar" onerror="this.onerror=null; this.src='./images/logo_duojump.png'">
+                        <img class="avatar" src="${user.avatar || './images/avatar_user.png'}" alt="Avatar" onerror="this.onerror=null; this.src='./images/logo_duojump.png'">
                         <button class="edit-avatar" id="editAvatar">✎</button>
                     </div>
 
@@ -763,14 +819,14 @@ function renderProfile() {
 }
 
 function bindEvents() {
-    document.getElementById("settingsBtn").addEventListener("click", () => {
+    document.getElementById("settingsBtn").addEventListener("click", async () => {
         playClick()
-        showToast("Configuración próximamente")
+        await openSettingsModal()
     })
 
-    document.getElementById("editAvatar").addEventListener("click", () => {
+    document.getElementById("editAvatar").addEventListener("click", async () => {
         playClick()
-        showToast("Cambio de avatar próximamente")
+        await openAvatarPicker()
     })
 
     document.getElementById("viewAll").addEventListener("click", () => {
@@ -836,6 +892,75 @@ function bindEvents() {
                 return
             }
         })
+    }
+}
+
+// Avatar picker modal
+async function openAvatarPicker() {
+    const existing = document.getElementById('avatarPickerOverlay')
+    if (existing) return
+
+    const overlay = document.createElement('div')
+    overlay.id = 'avatarPickerOverlay'
+    overlay.style = `position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:120;`;
+
+    const modal = document.createElement('div')
+    modal.style = `width:90%;max-width:720px;background:#fff;border-radius:12px;padding:18px;max-height:80vh;overflow:auto;`;
+
+    modal.innerHTML = `<h3 style="margin:0 0 12px">Elige un avatar</h3><div id="avatarGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:12px"></div><div style="text-align:right;margin-top:12px"><button id="closeAvatarPicker" style="padding:8px 12px;border-radius:8px;background:#ddd;border:none;">Cerrar</button></div>`
+
+    overlay.appendChild(modal)
+    document.body.appendChild(overlay)
+
+    document.getElementById('closeAvatarPicker').addEventListener('click', () => {
+        overlay.remove()
+    })
+
+    const grid = document.getElementById('avatarGrid')
+
+    // Try to load avatars from both ./images/avatars/ and ./images/
+    // Looks for avatar1..avatar8 (png/jpg/webp)
+    const candidates = []
+    const maxAv = 8
+    for (let i = 1; i <= maxAv; i++) {
+        candidates.push(`./images/avatars/avatar${i}.png`, `./images/avatars/avatar${i}.jpg`, `./images/avatars/avatar${i}.webp`)
+        candidates.push(`./images/avatar${i}.png`, `./images/avatar${i}.jpg`, `./images/avatar${i}.webp`)
+    }
+
+    // Deduplicate
+    const uniq = [...new Set(candidates)]
+
+    // Load images in parallel and display the ones that succeed
+    await Promise.all(uniq.map(src => new Promise(res => {
+        const img = new Image()
+        img.onload = () => {
+            const btn = document.createElement('button')
+            btn.style = 'border:2px solid #e4e2e2;background:#fff;padding:6px;border-radius:8px;cursor:pointer;'
+            btn.title = src
+            const thumb = document.createElement('img')
+            thumb.src = src
+            thumb.style = 'width:72px;height:72px;object-fit:cover;border-radius:50%;display:block'
+            btn.appendChild(thumb)
+            btn.addEventListener('click', () => {
+                const user = getUser() || {}
+                user.avatar = src
+                saveUser(user)
+                // update avatar in DOM
+                const avatarImg = document.querySelector('.avatar')
+                if (avatarImg) avatarImg.src = src
+                showToast('Avatar actualizado')
+                overlay.remove()
+            })
+            grid.appendChild(btn)
+            res()
+        }
+        img.onerror = () => res()
+        img.src = src
+    })))
+
+    // If none found, show helper text
+    if (!grid.children.length) {
+        grid.innerHTML = `<div style="padding:18px">No se encontraron avatares en <strong>./images/</strong> ni <strong>./images/avatars/</strong>. Coloca imágenes llamadas <em>avatar1.png</em>, <em>avatar2.png</em>, ... o sube tus propios archivos y recarga.</div>`
     }
 }
 

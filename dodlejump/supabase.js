@@ -104,11 +104,77 @@
         }
     }
 
+    // --- League helpers ---
+    function _genCode(len = 6) {
+        const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+        let s = ''
+        for (let i = 0; i < len; i++) s += chars.charAt(Math.floor(Math.random() * chars.length))
+        return s
+    }
+
+    async function createLeague(name, capacity = 50, code = null) {
+        if (!helper._client) throw new Error('Supabase not initialized')
+        const u = await getUser()
+        if (!u) throw new Error('Not authenticated')
+        const leagueCode = code || _genCode(6)
+        const { data, error } = await helper._client.from('leagues').insert({ name, code: leagueCode, owner_id: u.id, capacity }).select().single()
+        if (error) throw error
+        return data
+    }
+
+    async function joinLeague(code) {
+        if (!helper._client) throw new Error('Supabase not initialized')
+        const res = await helper._client.from('leagues').select('*').eq('code', code).maybeSingle()
+        if (res.error) throw res.error
+        const league = res.data
+        if (!league) throw new Error('Liga no encontrada')
+
+        // check capacity
+        const cnt = await helper._client.from('league_members').select('*', { count: 'exact', head: true }).eq('league_id', league.id)
+        if (cnt.error) throw cnt.error
+        const count = cnt.count || 0
+        if (count >= league.capacity) throw new Error('La liga está llena')
+
+        const u = await getUser()
+        if (!u) throw new Error('Not authenticated')
+
+        const up = await helper._client.from('league_members').insert({ league_id: league.id, user_id: u.id }).select().single()
+        if (up.error) throw up.error
+        return up.data
+    }
+
+    async function submitLeagueScore(leagueId, points) {
+        if (!helper._client) throw new Error('Supabase not initialized')
+        const u = await getUser()
+        if (!u) throw new Error('Not authenticated')
+
+        // upsert points (store max)
+        const { data, error } = await helper._client.from('league_members').upsert(
+            { league_id: leagueId, user_id: u.id, points },
+            { onConflict: ['league_id', 'user_id'], returning: 'representation' }
+        )
+
+        if (error) throw error
+        return data
+    }
+
+    async function getLeagueLeaderboard(leagueId, limit = 50) {
+        if (!helper._client) throw new Error('Supabase not initialized')
+        const { data, error } = await helper._client.from('league_members').select('user_id, points, joined_at').eq('league_id', leagueId).order('points', { ascending: false }).limit(limit)
+        if (error) throw error
+        return data
+    }
+
     window.SupabaseHelper = {
         init,
         signInWithGoogle,
         signOut,
         getUser,
         upsertUser,
+        // leagues
+        createLeague,
+        joinLeague,
+        submitLeagueScore,
+        getLeagueLeaderboard,
     }
 })()

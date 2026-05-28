@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DuoJump - Ligas</title>
+    <style>
+        body{font-family:Arial,Helvetica,sans-serif;background:#fbf9f8;margin:0;padding:20px}
+        .card{background:#fff;border:2px solid #e4e2e2;padding:18px;border-radius:12px;max-width:720px;margin:18px auto}
+        .row{display:flex;gap:12px}
+        input{padding:10px;border:1px solid #ddd;border-radius:6px;flex:1}
+        button{padding:10px 14px;border-radius:8px;background:#58cc02;color:#fff;border:none;font-weight:800;cursor:pointer}
+        .small{padding:8px 12px;font-size:14px}
+        .leader{margin-top:12px}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Crear liga</h2>
+        <div class="row">
+            <input id="leagueName" placeholder="Nombre de la liga (ej. Clase A)" />
+            <input id="leagueCap" placeholder="Capacidad (50)" />
+            <button id="createLeagueBtn" class="small">Crear</button>
+        </div>
+        <div id="createResult" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card">
+        <h2>Unirse a liga</h2>
+        <div class="row">
+            <input id="joinCode" placeholder="Código de liga" />
+            <button id="joinLeagueBtn" class="small">Unirse</button>
+        </div>
+        <div id="joinResult" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card">
+        <h2>Leaderboard (ingresa ID de liga)</h2>
+        <div class="row">
+            <input id="leaderLeagueId" placeholder="league id (uuid)" />
+            <button id="loadLeaderboard" class="small">Cargar</button>
+        </div>
+        <div id="leaderboard" class="leader"></div>
+    </div>
+
+    <script src="./supabase.js"></script>
+    <script src="./league.js"></script>
+</body>
+</html>

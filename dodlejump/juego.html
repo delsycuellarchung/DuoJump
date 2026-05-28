@@ -11,7 +11,7 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            background: #050519;
+            background: #071d35;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -19,11 +19,21 @@
             font-family: Arial, Helvetica, sans-serif;
         }
 
+        body {
+            background:
+                radial-gradient(circle at top, rgba(88, 204, 2, 0.18), transparent 35%),
+                linear-gradient(180deg, #0b2d4a 0%, #061425 100%);
+        }
+
         canvas {
             display: block;
-            border: 3px solid #22225a;
-            border-radius: 12px;
-            box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
+            width: min(96vw, 720px);
+            height: auto;
+            max-height: 94vh;
+            border: 4px solid rgba(255, 255, 255, 0.35);
+            border-radius: 20px;
+            box-shadow: 0 22px 55px rgba(0, 0, 0, 0.45);
+            background: #071d35;
         }
     </style>
 </head>

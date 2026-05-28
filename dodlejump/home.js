@@ -761,31 +761,35 @@ function bindHomeEvents() {
         window.location.href = GAME_PAGE
     })
 
-    document.querySelectorAll("[data-nav]").forEach((button) => {
-        button.addEventListener("click", () => {
+    // Delegate bottom nav clicks for reliable single-click navigation
+    const bottomContent = document.querySelector('.bottom-content')
+    if (bottomContent) {
+        bottomContent.addEventListener('click', (e) => {
+            const button = e.target.closest('[data-nav]')
+            if (!button) return
             playClick()
 
             const nav = button.dataset.nav
 
-            if (nav === "jugar") {
+            if (nav === 'jugar') {
                 return
             }
 
-            if (nav === "ligas") {
-                window.location.href = "./ligas.html"
+            if (nav === 'ligas') {
+                window.location.href = './ligas.html'
                 return
             }
 
-            if (nav === "tienda") {
-                window.location.href = "./tienda.html"
+            if (nav === 'tienda') {
+                window.location.href = './tienda.html'
                 return
             }
 
-            if (nav === "perfil") {
-                window.location.href = "./perfil.html"
+            if (nav === 'perfil') {
+                window.location.href = './perfil.html'
             }
         })
-    })
+    }
 }
 
 function init() {

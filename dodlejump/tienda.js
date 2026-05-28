@@ -765,7 +765,7 @@ function bindEvents() {
             }
 
             if (nav === 'perfil') {
-                window.location.href = LOGIN_PAGE
+                window.location.href = './perfil.html'
                 return
             }
         })

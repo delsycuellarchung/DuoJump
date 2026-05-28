@@ -475,7 +475,7 @@ function getLeaguePlayers(user, stats) {
             rank: 4,
             name: user.name || "Tú",
             xp: userScore,
-            avatar: "./images/avatar_user.png",
+            avatar: user.avatar || "./images/avatar_user.png",
             you: true,
         },
         {
@@ -560,6 +560,10 @@ function renderLigas() {
                             <img class="heart-img" src="${heartIcon}" alt="Vidas">
                             ${hearts}
                         </div>
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <img src="${user.avatar || './images/avatar_user.png'}" alt="avatar" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid #e4e2e2">
+                            <div style="font-weight:800;color:#2b6c00">${user.name || 'Tú'}</div>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -615,32 +619,35 @@ function renderLigas() {
 }
 
 function bindEvents() {
-    document.querySelectorAll("[data-nav]").forEach((button) => {
-        button.addEventListener("click", () => {
+    const bottomContent = document.querySelector('.bottom-content')
+    if (bottomContent) {
+        bottomContent.addEventListener('click', (e) => {
+            const button = e.target.closest('[data-nav]')
+            if (!button) return
             playClick()
 
             const nav = button.dataset.nav
 
-            if (nav === "jugar") {
+            if (nav === 'jugar') {
                 safeNavigate(HOME_PAGE)
                 return
             }
 
-            if (nav === "ligas") {
+            if (nav === 'ligas') {
                 return
             }
 
-            if (nav === "tienda") {
-                showToast("Tienda próximamente")
+            if (nav === 'tienda') {
+                window.location.href = './tienda.html'
                 return
             }
 
-            if (nav === "perfil") {
-                safeNavigate(LOGIN_PAGE)
+            if (nav === 'perfil') {
+                safeNavigate('./perfil.html')
                 return
             }
         })
-    })
+    }
 }
 
 function init() {
