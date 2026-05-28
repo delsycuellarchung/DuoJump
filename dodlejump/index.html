@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DuoJump</title>
+
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            min-height: 100%;
+            background: #fbf9f8;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app"></div>
+
+    <script src="./google-auth.js"></script>
+    <script src="./supabase.js"></script>
+    <script>
+        // Supabase credenciales 
+        const SUPABASE_URL = 'https://vkdcenrkpetytnaqmbho.supabase.co'
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrZGNlbnJrcGV0eXRuYXFtYmhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4ODA2NjUsImV4cCI6MjA5NTQ1NjY2NX0.NQ_m-VwqJpM_fDCj12Oe_inXfKtNbaGzlOGb-662FMQ'
+
+        if (window.SupabaseHelper) {
+            // initialize the Supabase client using the provided constants
+            try {
+                if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+                    SupabaseHelper.init(SUPABASE_URL, SUPABASE_ANON_KEY).catch(e => console.warn('Supabase init failed', e))
+                } else {
+                    // attempt to load client so helpers exist even without credentials
+                    SupabaseHelper.init('', '').catch(() => {})
+                }
+            } catch (e) {
+                console.warn('SupabaseHelper init error', e)
+            }
+        }
+    </script>
+    <script src="./login.js"></script>
+
+</body>
+</html>
