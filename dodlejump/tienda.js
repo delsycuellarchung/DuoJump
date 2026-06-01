@@ -407,8 +407,8 @@ function injectStyles() {
         }
 
         .nav-icon {
-            width: 24px;
-            height: 24px;
+            width: 32px;
+            height: 32px;
             object-fit: contain;
             display: block;
         }
@@ -496,8 +496,8 @@ function injectStyles() {
             }
 
             .nav-icon {
-                width: 22px;
-                height: 22px;
+                width: 28px;
+                height: 28px;
             }
         }
     `
@@ -665,7 +665,7 @@ function renderStore() {
 
                         <div class="stat-pill">
                             <img class="heart-img" src="${heartIcon}" alt="Vidas">
-                            ${hearts}
+                            <span class="heart-count">${hearts}</span>
                         </div>
                     </div>
                 </div>
@@ -673,10 +673,10 @@ function renderStore() {
 
             <main class="main">
                 <section class="welcome-card">
-                    <img class="welcome-avatar" src="./images/logo_duojump.png" alt="DuoJump">
+                    <img class="welcome-avatar" src="${user.avatar || './images/avatar_user.png'}" alt="${user.name || 'Avatar'}" onerror="this.onerror=null;this.src='./images/logo_duojump.png'">
 
                     <div>
-                        <div class="welcome-title">¡Bienvenido a la Tienda!</div>
+                        <div class="welcome-title">¡Hola ${user.name || 'Jugador'}!</div>
                         <div class="welcome-text">
                             Usa tus estrellas para conseguir ventajas increíbles y nuevos aspectos para Duo.
                         </div>
@@ -699,7 +699,7 @@ function renderStore() {
             <nav class="bottom-nav">
                 <div class="bottom-content">
                     <button class="nav-item" data-nav="jugar">
-                        <img class="nav-icon" src="./images/jugar.svg" alt="Jugar">
+                        <img class="nav-icon" src="./images/Home.svg" alt="Home">
                         Jugar
                     </button>
 
@@ -714,7 +714,7 @@ function renderStore() {
                     </button>
 
                     <button class="nav-item" data-nav="perfil">
-                        <img class="nav-icon" src="./images/perfil.svg" alt="Perfil">
+                        <img class="nav-icon nav-avatar" src="${user.avatar || './images/perfil.svg'}" alt="Perfil" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid #e6e6e6">
                         Perfil
                     </button>
                 </div>
@@ -723,6 +723,37 @@ function renderStore() {
     `
 
     bindEvents()
+
+    // Listen for profile updates and refresh avatar/title dynamically
+    try {
+        const applyUserUpdateStore = (user) => {
+            try {
+                const img = document.querySelector('.welcome-avatar')
+                if (img && user && user.avatar) img.src = user.avatar
+                const title = document.querySelector('.welcome-title')
+                if (title && user && user.name) title.textContent = `¡Hola ${user.name || 'Jugador'}!`
+                try {
+                    const navImg = document.querySelector('.nav-avatar')
+                    if (navImg && user && user.avatar) navImg.src = user.avatar
+                } catch (e) {}
+
+                try {
+                    const hc = document.querySelector('.heart-count')
+                    if (hc) hc.textContent = String(getStats().hearts || 0)
+                    const heartEl = document.querySelector('.heart-img')
+                    if (heartEl) heartEl.src = (getStats().hearts > 0) ? './images/corazon.png' : './images/corazon_vacio.svg'
+                } catch (e) {}
+            } catch (e) {}
+        }
+
+        window.addEventListener('duojump:user-updated', (e) => applyUserUpdateStore(e.detail || getUser()))
+        window.addEventListener('storage', (ev) => {
+            if (!ev) return
+            if (ev.key === STORAGE_USER || ev.key === STORAGE_STATS) {
+                try { applyUserUpdateStore(JSON.parse(localStorage.getItem(STORAGE_USER) || 'null')) } catch (e) {}
+            }
+        })
+    } catch (e) {}
 }
 
 function bindEvents() {

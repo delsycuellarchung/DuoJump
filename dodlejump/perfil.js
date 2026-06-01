@@ -79,6 +79,46 @@ function saveUser(user) {
     localStorage.setItem(STORAGE_USER, JSON.stringify(user))
 }
 
+// Broadcast profile updates so other pages/components can refresh without reload
+if (typeof window !== 'undefined') {
+    const _oldSave = saveUser
+    saveUser = function(user) {
+        _oldSave(user)
+        try { window.dispatchEvent(new CustomEvent('duojump:user-updated', { detail: user })) } catch (e) {}
+    }
+}
+
+// keep avatar and profile info in sync when updated elsewhere
+    try {
+    const applyProfileUserUpdate = (u) => {
+        try {
+            const navImg = document.querySelector('.nav-avatar')
+            if (navImg && u && u.avatar) navImg.src = u.avatar
+
+            const avatarImg = document.querySelector('.avatar')
+            if (avatarImg && u && u.avatar) avatarImg.src = u.avatar
+
+            const nameEl = document.querySelector('.profile-name')
+            if (nameEl && u && u.name) nameEl.textContent = u.name
+
+            try {
+                const hc = document.querySelector('.heart-count')
+                if (hc) hc.textContent = String(getStats().hearts || 0)
+                const heartEl = document.querySelector('.heart-img')
+                if (heartEl) heartEl.src = (getStats().hearts > 0) ? './images/corazon.png' : './images/corazon_vacio.svg'
+            } catch (e) {}
+        } catch (e) {}
+    }
+
+    window.addEventListener('duojump:user-updated', (e) => applyProfileUserUpdate(e.detail || getUser()))
+    window.addEventListener('storage', (ev) => {
+        if (!ev) return
+        if (ev.key === STORAGE_USER || ev.key === STORAGE_STATS) {
+            try { applyProfileUserUpdate(JSON.parse(localStorage.getItem(STORAGE_USER) || 'null')) } catch (e) {}
+        }
+    })
+} catch (e) {}
+
 function removeUser() {
     localStorage.removeItem(STORAGE_USER)
 }
@@ -473,8 +513,8 @@ function injectStyles() {
         }
 
         .nav-icon {
-            width: 24px;
-            height: 24px;
+            width: 32px;
+            height: 32px;
             object-fit: contain;
             display: block;
         }
@@ -582,8 +622,8 @@ function injectStyles() {
             }
 
             .nav-icon {
-                width: 22px;
-                height: 22px;
+                width: 28px;
+                height: 28px;
             }
         }
     `
@@ -720,7 +760,7 @@ function renderProfile() {
 
                         <div class="stat-pill">
                             <img class="heart-img" src="${heartIcon}" alt="Vidas">
-                            ${hearts}
+                            <span class="heart-count">${hearts}</span>
                         </div>
                     </div>
                 </div>
@@ -792,7 +832,7 @@ function renderProfile() {
             <nav class="bottom-nav">
                 <div class="bottom-content">
                     <button class="nav-item" data-nav="jugar">
-                        <img class="nav-icon" src="./images/jugar.svg" alt="Jugar">
+                        <img class="nav-icon" src="./images/Home.svg" alt="Home">
                         Jugar
                     </button>
 
@@ -807,7 +847,7 @@ function renderProfile() {
                     </button>
 
                     <button class="nav-item active" data-nav="perfil">
-                        <img class="nav-icon" src="./images/perfil.svg" alt="Perfil">
+                        <img class="nav-icon nav-avatar" src="${user.avatar || './images/perfil.svg'}" alt="Perfil" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid #e6e6e6">
                         Perfil
                     </button>
                 </div>

@@ -469,8 +469,8 @@ function injectStyles() {
         }
 
         .nav-icon {
-            width: 24px;
-            height: 24px;
+            width: 32px;
+            height: 32px;
             object-fit: contain;
             display: block;
         }
@@ -611,8 +611,8 @@ function injectStyles() {
             }
 
             .nav-icon {
-                width: 22px;
-                height: 22px;
+                width: 28px;
+                height: 28px;
             }
             .heart-img {
                 width: 26px;
@@ -657,7 +657,8 @@ function renderHome() {
     const app = document.getElementById("app")
 
     const coins = stats.coins || 0
-    const hearts = stats.hearts || 5
+    const hearts = stats.hearts ?? 5
+    const heartIcon = hearts > 0 ? "./images/corazon.png" : "./images/corazon_vacio.svg"
     const bestScore = stats.bestScore || 0
     const remaining = Math.max(0, 50 - Math.min(bestScore, 50))
     const progress = Math.min(100, Math.floor((bestScore / 50) * 100))
@@ -681,29 +682,15 @@ function renderHome() {
                         </div>
 
                         <div class="stat-pill">
-                            <span class="heart-icon">♡</span>
-                            ${hearts}
+                            <img class="heart-img" src="${heartIcon}" alt="Vidas">
+                            <span class="heart-count">${hearts}</span>
                         </div>
                     </div>
                 </div>
             </header>
 
             <main class="content">
-                <aside class="side-panel">
-                    <div class="info-card">
-                        <div class="info-title">♙ Record personal</div>
-                        <div class="info-value">${bestScore.toLocaleString()}</div>
-                    </div>
-
-                    <div class="info-card">
-                        <div class="info-title">⚡ Desafío diario</div>
-                        <div class="challenge-text">Salta 50 nubes</div>
-
-                        <div class="progress">
-                            <div class="progress-fill" style="width: ${progress}%"></div>
-                        </div>
-                    </div>
-                </aside>
+                
 
                 <section class="hero">
                     <div class="owl-wrap">
@@ -712,24 +699,13 @@ function renderHome() {
 
                     <button class="play-button" id="playGame">¡A jugar!</button>
 
-                    <div class="level-pill">Nivel 4: Bosque de Nubes</div>
                 </section>
-
-                <div class="message-box">
-                    <img class="small-owl" src="./images/duolingo.webp" alt="DuoJump">
-
-                    <div class="speech">
-                        ${remaining > 0 
-                            ? `¡Estás a solo ${remaining} puntos de superar tu récord!` 
-                            : "¡Ya superaste el desafío diario! Sigue practicando."}
-                    </div>
-                </div>
             </main>
 
             <nav class="bottom-nav">
                 <div class="bottom-content">
                     <button class="nav-item active" data-nav="jugar">
-                        <img class="nav-icon" src="./images/jugar.svg" alt="Jugar">
+                        <img class="nav-icon" src="./images/Home.svg" alt="Home">
                         Jugar
                     </button>
 
@@ -744,7 +720,7 @@ function renderHome() {
                     </button>
 
                     <button class="nav-item" data-nav="perfil">
-                        <img class="nav-icon" src="./images/perfil.svg" alt="Perfil">
+                        <img class="nav-icon nav-avatar" src="${user.avatar || './images/perfil.svg'}" alt="Perfil" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid #e6e6e6">
                         Perfil
                     </button>
                 </div>
@@ -796,5 +772,31 @@ function init() {
     injectStyles()
     renderHome()
 }
+
+// keep bottom nav avatar in sync when user changes profile
+try {
+    const applyUserUpdateHome = (u) => {
+        try {
+            const navImg = document.querySelector('.nav-avatar')
+            if (navImg && u && u.avatar) navImg.src = u.avatar
+
+            const heartEl = document.querySelector('.heart-img')
+            if (heartEl) {
+                const s = getStats()
+                heartEl.src = (s.hearts > 0) ? './images/corazon.png' : './images/corazon_vacio.svg'
+                const hc = document.querySelector('.heart-count')
+                if (hc) hc.textContent = String(s.hearts)
+            }
+        } catch (e) {}
+    }
+
+    window.addEventListener('duojump:user-updated', (e) => applyUserUpdateHome(e.detail || getUser()))
+    window.addEventListener('storage', (ev) => {
+        if (!ev) return
+        if (ev.key === STORAGE_USER || ev.key === STORAGE_STATS) {
+            try { applyUserUpdateHome(JSON.parse(localStorage.getItem(STORAGE_USER) || 'null')) } catch (e) {}
+        }
+    })
+} catch (e) {}
 
 document.addEventListener("DOMContentLoaded", init)
