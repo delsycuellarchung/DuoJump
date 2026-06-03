@@ -17,6 +17,9 @@ loadSound("jump", "jump.mp3")
 loadSound("click", "mouse_click.mp3")
 loadSound("pickup", "pick_up.mp3")
 
+// Cargar sprite de moneda (reemplaza el emoji)
+loadSprite("coin_icon", "images/coin.png")
+
 const STORAGE_STATS = "duojump_stats"
 const STORAGE_MODE = "duojump_learning_mode"
 const STORAGE_MUTED = "duojump_sound_muted"
@@ -200,6 +203,77 @@ function positionFloatingUI() {
     positionMuteButton()
 }
     // Función: ajusta la posición de los elementos UI flotantes (HUD)
+
+// Elementos overlay para la moneda (DOM overlays para asegurar visibilidad)
+let coinOverlay = null
+let modalCoinOverlay = null
+
+function canvasToPage(x, y) {
+    const canvas = document.querySelector("canvas")
+    if (!canvas) return { x: x, y: y }
+    const rect = canvas.getBoundingClientRect()
+    return { x: rect.left + x, y: rect.top + y }
+}
+
+function createCoinOverlay() {
+    if (coinOverlay) return
+    const img = document.createElement("img")
+    img.id = "duojump-coin-overlay"
+    img.src = "images/coin.png"
+    img.style.position = "fixed"
+    img.style.width = "34px"
+    img.style.height = "auto"
+    img.style.zIndex = "10001"
+    img.style.pointerEvents = "none"
+    document.body.appendChild(img)
+    coinOverlay = img
+    positionCoinOverlay()
+    window.addEventListener("resize", positionCoinOverlay)
+    window.addEventListener("scroll", positionCoinOverlay)
+}
+
+function positionCoinOverlay() {
+    if (!coinOverlay) return
+    const canvas = document.querySelector("canvas")
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+    // posicion relativa al canvas: acercar al borde derecho y centrar verticalmente en cabecera
+    const x = rect.right - 90
+    const y = rect.top + 18
+    coinOverlay.style.left = `${Math.round(x)}px`
+    coinOverlay.style.top = `${Math.round(y)}px`
+}
+
+function removeCoinOverlay() {
+    if (!coinOverlay) return
+    try { coinOverlay.remove() } catch (e) {}
+    coinOverlay = null
+    window.removeEventListener("resize", positionCoinOverlay)
+    window.removeEventListener("scroll", positionCoinOverlay)
+}
+
+function createModalCoinOverlay(canvasX, canvasY, size = 36) {
+    removeModalCoinOverlay()
+    const pos = canvasToPage(canvasX, canvasY)
+    const img = document.createElement("img")
+    img.id = "duojump-modal-coin"
+    img.src = "images/coin.png"
+    img.style.position = "fixed"
+    img.style.width = `${size}px`
+    img.style.height = "auto"
+    img.style.zIndex = "10002"
+    img.style.pointerEvents = "none"
+    img.style.left = `${Math.round(pos.x - size / 2)}px`
+    img.style.top = `${Math.round(pos.y - size / 2)}px`
+    document.body.appendChild(img)
+    modalCoinOverlay = img
+}
+
+function removeModalCoinOverlay() {
+    if (!modalCoinOverlay) return
+    try { modalCoinOverlay.remove() } catch (e) {}
+    modalCoinOverlay = null
+}
 
 function removeWordsPanel() {
     if (wordsPanel) {
@@ -404,8 +478,8 @@ function updateWordsPanel(targetWordsList = [], currentWordIndex = 0) {
 
         if (isCompleted) {
             rowStyle += `
-                background:#edf9e7;
-                border-left:4px solid #58cc02;
+                background:#ffecec;
+                border-left:4px solid #ff4d4d;
             `
         }
 
@@ -421,7 +495,7 @@ function updateWordsPanel(targetWordsList = [], currentWordIndex = 0) {
 
         if (isCompleted) {
             textStyle += `
-                color:#46a102;
+                color:#c62828;
                 text-decoration:line-through;
             `
         }
@@ -451,7 +525,7 @@ function updateWordsPanel(targetWordsList = [], currentWordIndex = 0) {
 
                 <div style="
                     font-size:12px;
-                    color:${isCompleted ? "#46a102" : "#6a7b64"};
+                    color:${isCompleted ? "#c62828" : "#6a7b64"};
                 ">
                     ${item.meaning}
                 </div>
@@ -491,7 +565,7 @@ function readStats() {
         const raw = localStorage.getItem(STORAGE_STATS)
         let stats = raw ? JSON.parse(raw) : {}
 
-        stats.hearts = MAX_HEARTS
+        stats.hearts = stats.hearts ?? MAX_HEARTS
         stats.coins = stats.coins ?? 0
         stats.streak = stats.streak ?? 0
         stats.bestScore = stats.bestScore ?? 0
@@ -613,7 +687,6 @@ function saveRunProgress(finalScore, finalLevel, wordsCompletedRun, wordCoinsRun
     stats.leagueXp = (stats.leagueXp || 0) + xpEarned
     stats.coins = (stats.coins || 0) + coinsEarned
     stats.wordsCompleted = (stats.wordsCompleted || 0) + wordsCompletedRun
-    stats.hearts = MAX_HEARTS
 
     updateStreak(stats)
     writeStats(stats)
@@ -621,7 +694,7 @@ function saveRunProgress(finalScore, finalLevel, wordsCompletedRun, wordCoinsRun
     return {
         coinsEarned,
         xpEarned,
-        heartsLeft: MAX_HEARTS,
+        heartsLeft: stats.hearts ?? MAX_HEARTS,
         finalLevel,
         bestScore: stats.bestScore,
         wordsCompletedRun,
@@ -668,6 +741,7 @@ function stopBackgroundMusic() {
     }
 }
 
+// Función: devuelve paletas de color para fondos según el nivel
 function getBackgroundPalette(level) {
     if (level < 5) return { base: [82, 162, 205], tint: [23, 75, 120], cloud: [245, 252, 255] }
     if (level < 10) return { base: [65, 142, 196], tint: [18, 62, 115], cloud: [235, 247, 255] }
@@ -678,6 +752,7 @@ function getBackgroundPalette(level) {
     return { base: [34, 55, 105], tint: [8, 22, 58], cloud: [205, 216, 236] }
 }
 
+// Función: calcula configuración de juego (gap, velocidad, salto) según score
 function getLevelConfig(score) {
     const level = Math.max(1, Math.floor(score / LEVEL_STEP) + 1)
 
@@ -724,6 +799,7 @@ function getLevelConfig(score) {
     return { level, gapMin, gapMax, speed, jump }
 }
 
+// Función: determina el tipo de plataforma que debe generarse según nivel
 function getPlatformType(level) {
     const chance = rand(0, 1)
 
@@ -764,6 +840,7 @@ function getPlatformType(level) {
     return "normal"
 }
 
+// Función: devuelve dimensiones y apariencia según tipo de plataforma
 function getPlatformStyle(type) {
     if (type === "small") {
         return {
@@ -818,6 +895,7 @@ function getPlatformStyle(type) {
     }
 }
 
+// Función: devuelve el color del jugador según la skin activa
 function getPlayerColor() {
     const stats = readStats()
 
@@ -827,6 +905,7 @@ function getPlayerColor() {
     return PALETTE.green
 }
 
+// Función: obtiene una palabra (evita repetidos) para el modo indicado
 function getWordData(mode, usedWords = []) {
     let selected = VERBS[Math.floor(rand(0, VERBS.length))]
     let word = mode === "past" ? selected.past : selected.present
@@ -848,6 +927,7 @@ function getWordData(mode, usedWords = []) {
     }
 }
 
+// Función: construye un lote de palabras objetivo evitando las recientes
 function buildTargetWords(mode, recentWords = []) {
     const words = []
     const usedWords = [...recentWords]
@@ -861,6 +941,7 @@ function buildTargetWords(mode, recentWords = []) {
     return words
 }
 
+// Función: retorna la palabra enmascarada según el progreso del jugador
 function getMaskedWord(word, progress) {
     return word
         .split("")
@@ -868,6 +949,7 @@ function getMaskedWord(word, progress) {
         .join(" ")
 }
 
+// Función: agrega partes de nube decorativas al fondo del juego
 function addCloud(x, y, scale, cloudColor, zIndex, fixedCloud = true, speed = 0) {
     const components = fixedCloud ? [fixed()] : []
     const parts = []
@@ -919,6 +1001,7 @@ function addCloud(x, y, scale, cloudColor, zIndex, fixedCloud = true, speed = 0)
     return parts
 }
 
+// Función: crea y devuelve los elementos del fondo del juego
 function addGameBackground() {
     const p = getBackgroundPalette(1)
 
@@ -998,6 +1081,7 @@ function addGameBackground() {
     return { base, tint, softLayer, clouds }
 }
 
+// Función: aplica la paleta de colores del fondo según el nivel
 function applyBackgroundLevel(bg, level) {
     const p = getBackgroundPalette(level)
 
@@ -1009,6 +1093,7 @@ function applyBackgroundLevel(bg, level) {
     }
 }
 
+// Función: genera partículas visuales al saltar
 function jumpEffect(x, y) {
     for (let i = 0; i < 7; i++) {
         const particle = add([
@@ -1036,6 +1121,7 @@ function jumpEffect(x, y) {
     }
 }
 
+// Función: muestra texto flotante como retroalimentación (feedback)
 function floatingText(message, x, y, textColor = [255, 255, 255]) {
     const label = add([
         text(message, { size: 18 }),
@@ -1056,6 +1142,7 @@ function floatingText(message, x, y, textColor = [255, 255, 255]) {
     })
 }
 
+// Función: muestra una notificación breve cuando el jugador sube de nivel
 function levelToast(level) {
     playSound("coin", 0.45)
 
@@ -1093,11 +1180,13 @@ function levelToast(level) {
     })
 }
 
+// Función: muestra efectos según el tipo de plataforma (break/danger)
 function platformEffect(x, y, type) {
     if (type === "break") floatingText("CRACK!", x, y, PALETTE.orange)
     if (type === "danger") floatingText("PELIGRO!", x, y, PALETTE.red)
 }
 
+// Función: anima y destruye una plataforma frágil (break)
 function destroyBreakPlatform(platform) {
     if (!platform || platform.used) return
 
@@ -1141,6 +1230,7 @@ function destroyBreakPlatform(platform) {
     })
 }
 
+// Función: efecto visual y sonoro cuando se activa una plataforma boost
 function boostPlatformEffect(x, y) {
     playSound("coin", 0.65)
     floatingText("SÚPER SALTO +5", x, y - 24, PALETTE.purple)
@@ -1166,6 +1256,7 @@ function boostPlatformEffect(x, y) {
     }
 }
 
+// Función: crea un botón en pantalla con sombra, etiqueta y comportamiento
 function addButton(label, x, y, w, h, bgColor, textColor, onClickFn) {
     const shadow = add([
         rect(w, h),
@@ -1263,6 +1354,7 @@ scene("mode", () => {
 
     let focusedIndex = 0
 
+    // Función: aplica el estilo de foco a un botón del menú y anima la selección
     function focusButton(idx) {
         focusedIndex = Math.max(0, Math.min(idx, menuButtons.length - 1))
 
@@ -1289,6 +1381,7 @@ scene("mode", () => {
     onKeyDown("right", () => focusButton(focusedIndex + 1))
     onKeyDown("down", () => focusButton(focusedIndex + 1))
 
+    // Función: activa el botón que actualmente tiene el foco (simula click)
     function activateFocused() {
         const sel = menuButtons[focusedIndex]
         if (!sel) return
@@ -1412,6 +1505,7 @@ scene("game", (selectedMode) => {
     let letterPlatformCounter = 0
     let recentWordsHistory = readRecentWords(mode)
     let targetWordsList = buildTargetWords(mode, recentWordsHistory)
+    let wordsAutoRefilled = false
 
     recentWordsHistory.push(...targetWordsList.map(w => w.word))
     recentWordsHistory = recentWordsHistory.slice(-60)
@@ -1423,7 +1517,7 @@ scene("game", (selectedMode) => {
     let wordProgress = 0
 
     const statsAtStart = readStats()
-    let hearts = MAX_HEARTS
+    let hearts = statsAtStart.hearts ?? MAX_HEARTS
     let totalCoins = statsAtStart.coins || 0
     const playerColor = getPlayerColor()
 
@@ -1449,32 +1543,32 @@ scene("game", (selectedMode) => {
     ])
 
     add([
-        text("DuoJump", { size: 22 }),
-        pos(18, 14),
+        text("DuoJump", { size: 18 }),
+        pos(18, 12),
         color(...PALETTE.brandGreen),
         fixed(),
         z(60),
     ])
 
     const scoreText = add([
-        text("0", { size: 24 }),
-        pos(24, 58),
+        text("0", { size: 28 }),
+        pos(28, 50),
         color(...PALETTE.text),
         fixed(),
         z(60),
     ])
 
     add([
-        text("SCORE", { size: 11 }),
-        pos(24, 44),
+        text("SCORE", { size: 12 }),
+        pos(28, 36),
         color(...PALETTE.softText),
         fixed(),
         z(60),
     ])
 
     const levelTextShadow = add([
-        text("Nivel 1", { size: 27 }),
-        pos(width() / 2 + 2, 22),
+        text("Nivel 1", { size: 30 }),
+        pos(width() / 2 + 2, 14),
         anchor("center"),
         color(150, 185, 130),
         fixed(),
@@ -1482,8 +1576,8 @@ scene("game", (selectedMode) => {
     ])
 
     const levelText = add([
-        text("Nivel 1", { size: 27 }),
-        pos(width() / 2, 20),
+        text("Nivel 1", { size: 28 }),
+        pos(width() / 2, 12),
         anchor("center"),
         color(...PALETTE.brandGreen),
         fixed(),
@@ -1508,33 +1602,28 @@ scene("game", (selectedMode) => {
         z(60),
     ])
 
-    add([
-        text("✪", { size: 31 }),
-        pos(width() - 140, 13),
-        color(221, 173, 0),
-        fixed(),
-        z(60),
-    ])
+    // Usamos un overlay DOM para la moneda para garantizar visibilidad en todos los navegadores
+    createCoinOverlay()
 
     const coinText = add([
-        text(String(totalCoins), { size: 23 }),
-        pos(width() - 103, 18),
+        text(String(totalCoins), { size: 26 }),
+        pos(width() - 48, 22),
         color(221, 173, 0),
         fixed(),
         z(60),
     ])
 
     add([
-        text("♥", { size: 31 }),
-        pos(width() - 140, 49),
+        text("♥", { size: 22 }),
+        pos(width() - 60, 56),
         color(230, 57, 70),
         fixed(),
         z(60),
     ])
 
     const heartText = add([
-        text(String(hearts), { size: 23 }),
-        pos(width() - 103, 54),
+        text(String(hearts), { size: 22 }),
+        pos(width() - 36, 56),
         color(230, 57, 70),
         fixed(),
         z(60),
@@ -1574,10 +1663,12 @@ scene("game", (selectedMode) => {
         z(60),
     ])
 
+    // Función: devuelve la siguiente letra que el jugador debe recolectar
     function getNeededLetter() {
         return currentWord[wordProgress] || ""
     }
 
+    // Función: actualiza el HUD relacionado con la palabra objetivo
     function updateWordHud() {
         wordText.text = getMaskedWord(currentWord, wordProgress)
         meaningText.text = "Significado: " + currentWordData.meaning
@@ -1595,6 +1686,7 @@ scene("game", (selectedMode) => {
         powerText.text = powerLabel
     }
 
+    // Función: actualiza todos los textos del HUD (score, nivel, monedas, vidas)
     function updateHud() {
         scoreText.text = String(score)
         levelText.text = "Nivel " + currentLevel
@@ -1611,12 +1703,14 @@ scene("game", (selectedMode) => {
         updateWordHud()
     }
 
+    // Función: elimina todas las entidades de letra actualmente en pantalla
     function clearLetters() {
         for (const letter of get("letter")) destroy(letter)
         for (const letterText of get("letterText")) destroy(letterText)
         for (const letterAura of get("letterAura")) destroy(letterAura)
     }
 
+    // Función: comprueba si la letra necesaria ya está en pantalla
     function neededLetterOnScreen() {
         const needed = getNeededLetter()
 
@@ -1682,6 +1776,7 @@ scene("game", (selectedMode) => {
         ])
     }
 
+    // Función: crea la plataforma inicial estable donde comienza el jugador
     function createStarterPlatform() {
         const starterWidth = NORMAL_PLATFORM_WIDTH + 35
         const starterX = START_PLATFORM_X - 17
@@ -1735,6 +1830,7 @@ scene("game", (selectedMode) => {
         lastX = START_PLATFORM_X
     }
 
+    // Función: muestra un modal con información cuando se completa una palabra
     function openCompletedWordModal(wordInfo) {
         wordModalActive = true
         playSound("coin", 0.9)
@@ -1806,6 +1902,9 @@ scene("game", (selectedMode) => {
             ]),
         ]
 
+        // crear overlay DOM para la moneda dentro del modal (mejor visibilidad)
+        createModalCoinOverlay(width() / 2 + 90, height() / 2 - 48, 40)
+
         const progressBar = add([
             rect(280, 14),
             pos(width() / 2 - 140, height() / 2 + 112),
@@ -1852,6 +1951,7 @@ scene("game", (selectedMode) => {
         wordModalObjects.push(progressBar, countdown)
     }
 
+    // Función: avanza al siguiente objetivo de palabra o construye un nuevo lote
     function moveToNextWord() {
         const nextIndex = targetWordsList.findIndex(item => item.completed === false)
 
@@ -1876,6 +1976,7 @@ scene("game", (selectedMode) => {
         updateHud()
     }
 
+    // Función: cierra el modal de palabra completada y actualiza el estado
     function continueAfterCompletedWord(wordInfo) {
         if (!wordModalActive) return
 
@@ -1887,6 +1988,9 @@ scene("game", (selectedMode) => {
             }
         }
 
+        // eliminar overlay modal si existe
+        removeModalCoinOverlay()
+
         wordModalObjects = []
 
         targetWordsList[currentWordIndex].completed = true
@@ -1897,6 +2001,7 @@ scene("game", (selectedMode) => {
         })
     }
 
+    // Función: maneja la lógica cuando el jugador completa una palabra
     function completeWord() {
         const completedInfo = {
             word: currentWord,
@@ -1913,6 +2018,7 @@ scene("game", (selectedMode) => {
         openCompletedWordModal(completedInfo)
     }
 
+    // Función: procesa la recolección de una letra y actualiza progreso
     function collectLetter(letter) {
         const needed = getNeededLetter()
 
@@ -1935,6 +2041,7 @@ scene("game", (selectedMode) => {
         }
     }
 
+    // Función: crea una nueva plataforma en la posición Y dada
     function createPlatform(y, forceNormal = false) {
         const config = getLevelConfig(score)
         const type = forceNormal ? "normal" : getPlatformType(config.level)
@@ -2065,6 +2172,7 @@ scene("game", (selectedMode) => {
         z(31),
     ])
 
+    // Función: actualiza la posición de ojos, pico y sombra del jugador
     function updatePlayerFace() {
         playerShadow.pos.x = player.pos.x
         playerShadow.pos.y = player.pos.y + PLAYER_SIZE + 8
@@ -2079,6 +2187,7 @@ scene("game", (selectedMode) => {
         beak.pos.y = player.pos.y + 22
     }
 
+    // Función: si hay escudo activo, lo consume para salvar al jugador
     function useShieldSave() {
         if (!shieldActive) return false
 
@@ -2094,6 +2203,7 @@ scene("game", (selectedMode) => {
         return true
     }
 
+    // Función: pausa o reanuda el juego mostrando la UI correspondiente
     function setPaused(value) {
         if (wordModalActive) return
 
@@ -2161,6 +2271,7 @@ scene("game", (selectedMode) => {
         }
     }
 
+    // Función: maneja la finalización de la partida y guarda recompensas
     function loseGame() {
         if (gameOver) return
 
@@ -2170,9 +2281,21 @@ scene("game", (selectedMode) => {
         removeWordsPanel()
         removeMuteButton()
 
+        // limpiar overlays DOM de moneda
+        try { removeCoinOverlay() } catch (e) {}
+        try { removeModalCoinOverlay() } catch (e) {}
+
+        // Reducir vidas persistentes al perder
+        try {
+            const stats = readStats()
+            stats.hearts = Math.max(0, (stats.hearts ?? MAX_HEARTS) - 1)
+            writeStats(stats)
+        } catch (e) {}
+
         const rewardsSaved = saveRunProgress(score, currentLevel, wordsCompletedRun, wordCoinsRun)
 
-        go("gameover", score, currentLevel, rewardsSaved)
+        // Pasar el modo actual para poder reintentar la misma modalidad
+        go("gameover", score, currentLevel, rewardsSaved, mode)
     }
 
     onKeyPress("p", () => {
@@ -2225,7 +2348,7 @@ scene("game", (selectedMode) => {
 
             if (springJumpTimer <= 0) {
                 springJumpTimer = 0
-                floatingText("MUELLE FINALIZADO", player.pos.x + PLAYER_SIZE / 2, player.pos.y - 10, PALETTE.orange)
+                        floatingText("MUELLE FINALIZADO", player.pos.x + PLAYER_SIZE / 2, player.pos.y - 10, PALETTE.orange)
             }
         }
 
@@ -2283,10 +2406,17 @@ scene("game", (selectedMode) => {
                 }
 
                 if (platform.type === "boost") {
-                    jumpPower = config.jump - 360
+                    // Salto de boost más potente: aumenta magnitud del salto
+                    jumpPower = config.jump - 480
                     speedBonus = 120
                     speedBonusTimer = 5
                     boostPlatformEffect(platform.pos.x + platform.platformWidth / 2, platform.pos.y)
+                    // Recompensa: 5 monedas al usar una plataforma boost
+                    try {
+                        wordCoinsRun += 5
+                        playSound("coin", 0.75)
+                        floatingText("+5", platform.pos.x + platform.platformWidth / 2, platform.pos.y - 18, PALETTE.gold)
+                    } catch (e) {}
                 }
 
                 player.velY = jumpPower
@@ -2346,6 +2476,29 @@ scene("game", (selectedMode) => {
 
     onUpdate(() => {
         if (paused || wordModalActive) return
+
+        // Si todas las palabras están completadas y el jugador sigue en la partida,
+        // generar un nuevo lote de palabras automáticamente.
+        if (!gameOver && targetWordsList && targetWordsList.length > 0) {
+            const anyIncomplete = targetWordsList.some(w => !w.completed)
+            if (!anyIncomplete && !wordsAutoRefilled) {
+                // reconstruir palabras evitando recientes
+                targetWordsList = buildTargetWords(mode, recentWordsHistory)
+                recentWordsHistory.push(...targetWordsList.map(w => w.word))
+                recentWordsHistory = recentWordsHistory.slice(-60)
+                writeRecentWords(mode, recentWordsHistory)
+
+                currentWordIndex = 0
+                currentWordData = targetWordsList[currentWordIndex]
+                currentWord = currentWordData.word
+                wordProgress = 0
+                letterPlatformCounter = 0
+                updateWordsPanel(targetWordsList, currentWordIndex)
+                updateHud()
+                wordsAutoRefilled = true
+                floatingText("Nuevas palabras disponibles", width() / 2, cameraY - 80, PALETTE.purple)
+            }
+        }
 
         for (const platform of get("platform")) {
             if (platform.type === "moving") {
@@ -2420,9 +2573,10 @@ scene("game", (selectedMode) => {
     updateHud()
 })
 
-scene("gameover", (finalScore, finalLevel, rewards) => {
+scene("gameover", (finalScore, finalLevel, rewards, prevMode) => {
     removeWordsPanel()
     removeMuteButton()
+    removeModalCoinOverlay()
     addGameBackground()
 
     const data = rewards || {
@@ -2452,22 +2606,15 @@ scene("gameover", (finalScore, finalLevel, rewards) => {
     ])
 
     add([
-        text("¡Buen intento!", { size: 38 }),
+        text("PERDISTE JAJAJAJ", { size: 38 }),
         pos(width() / 2, height() / 2 - 172),
         anchor("center"),
-        color(...PALETTE.brandGreen),
+        color(...PALETTE.red),
         fixed(),
         z(2),
     ])
 
-    add([
-        text("Sigue practicando verbos para subir de liga", { size: 16 }),
-        pos(width() / 2, height() / 2 - 134),
-        anchor("center"),
-        color(...PALETTE.softText),
-        fixed(),
-        z(2),
-    ])
+    // texto de motivación eliminado según solicitud
 
     add([
         text("Score", { size: 14 }),
@@ -2514,9 +2661,12 @@ scene("gameover", (finalScore, finalLevel, rewards) => {
         z(2),
     ])
 
+    // Mostrar overlay DOM de moneda en modal (asegura visibilidad)
+    createModalCoinOverlay(width() / 2 + 90, height() / 2 - 48, 40)
+
     add([
-        text("✪ " + data.coinsEarned, { size: 30 }),
-        pos(width() / 2 + 120, height() / 2 - 48),
+        text(String(data.coinsEarned), { size: 30 }),
+        pos(width() / 2 + 140, height() / 2 - 48),
         anchor("center"),
         color(221, 173, 0),
         fixed(),
@@ -2533,7 +2683,7 @@ scene("gameover", (finalScore, finalLevel, rewards) => {
     ])
 
     add([
-        text("+ " + data.xpEarned + " XP para ligas", { size: 18 }),
+        text(data.xpEarned + " XP", { size: 18 }),
         pos(width() / 2, height() / 2 + 35),
         anchor("center"),
         color(...PALETTE.brandGreen),
@@ -2550,13 +2700,14 @@ scene("gameover", (finalScore, finalLevel, rewards) => {
         z(2),
     ])
 
-    addButton("REINTENTAR", width() / 2, height() / 2 + 130, 250, 56, PALETTE.green, PALETTE.white, () => {
+    // Dos botones grandes alineados dentro del cuadro: REINTENTAR y VOLVER AL HOME
+    addButton("REINTENTAR", width() / 2 - 100, height() / 2 + 130, 170, 48, PALETTE.green, PALETTE.white, () => {
         playSound("arcade", 0.5)
         startBackgroundMusic()
-        go("mode")
+        go("game", prevMode || localStorage.getItem(STORAGE_MODE) || "present")
     })
 
-    addButton("VOLVER AL HOME", width() / 2, height() / 2 + 196, 250, 50, [255, 255, 255], PALETTE.brandGreen, () => {
+    addButton("VOLVER AL HOME", width() / 2 + 100, height() / 2 + 130, 170, 48, [255, 255, 255], PALETTE.brandGreen, () => {
         removeWordsPanel()
         removeMuteButton()
         window.location.href = HOME_PAGE
